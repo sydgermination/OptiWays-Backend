@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.OptiWays" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.OptiWays.SplashScreen" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#1565C0</item>
+        <item name="postSplashScreenTheme">@style/Theme.OptiWays</item>
+    </style>
+</resources>

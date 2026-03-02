@@ -1,0 +1,13 @@
+## local.properties — DO NOT commit to git
+## Add your actual keys below
+
+# Android SDK path (set by Android Studio automatically)
+sdk.dir=/Users/your-username/Library/Android/sdk
+
+# Google Maps API Key
+# Get from: https://console.cloud.google.com → APIs & Services → Credentials
+MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
+
+# Railway.app CSA backend URL
+# Set after deploying backend to Railway
+CSA_BASE_URL=https://optiways-backend.railway.app/

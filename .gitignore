@@ -1,0 +1,26 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Firebase — NEVER commit these
+google-services.json
+*.keystore
+*.jks
+
+# Python
+__pycache__/
+*.py[cod]
+.env
+backend/.env
+backend/data/*.pbf
+
+# Node
+node_modules/
+functions/node_modules/

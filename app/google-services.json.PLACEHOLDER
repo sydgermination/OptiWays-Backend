@@ -1,0 +1,13 @@
+// ⚠️ REPLACE THIS FILE with your real google-services.json from Firebase Console
+// Steps:
+// 1. Go to https://console.firebase.google.com
+// 2. Create project "OptiWays"
+// 3. Add Android app with package name: com.optiways
+// 4. Download google-services.json and place it here: app/google-services.json
+// 5. Enable Authentication (Email/Password) in Firebase Console
+// 6. Enable Cloud Firestore in Firebase Console
+// 7. Enable Cloud Functions in Firebase Console
+//
+// Also add your Google Maps API key to local.properties:
+// MAPS_API_KEY=your_key_here
+// CSA_BASE_URL=https://your-app.railway.app/
