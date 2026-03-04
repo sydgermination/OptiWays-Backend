@@ -3,20 +3,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for pyosmium
+# Install system dependencies + pyosmium via apt (more reliable than pip)
 RUN apt-get update && apt-get install -y \
     wget \
-    build-essential \
-    cmake \
-    libboost-dev \
-    libexpat1-dev \
-    zlib1g-dev \
-    libbz2-dev \
-    libprotozero-dev \
-    libboost-program-options-dev \
+    python3-osmium \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python dependencies (without pyosmium - installed via apt)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -25,7 +18,7 @@ COPY *.py .
 
 # Create data directory and download OSM data
 RUN mkdir -p data && \
-    wget -q --show-progress \
+    wget -q \
     https://download.geofabrik.de/asia/philippines-latest.osm.pbf \
     -O data/philippines-latest.osm.pbf \
     && echo "✅ OSM file downloaded" \
