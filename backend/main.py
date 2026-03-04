@@ -10,8 +10,10 @@ from enum import Enum
 from typing import Optional
 import uvicorn
 import os
+import asyncio
 import math
 from datetime import datetime
+
 
 # Safe imports — app still runs in mock mode if these fail
 try:
@@ -48,22 +50,32 @@ def download_osm_if_needed():
         return False
 
 
+async def load_network_background():
+    global STOPS, CONNECTIONS, NETWORK_LOADED
+    if not IMPORTS_OK:
+        print("⚠️  Imports failed — staying in mock mode")
+        return
+    try:
+        loop = asyncio.get_event_loop()
+        osm_ready = await loop.run_in_executor(None, download_osm_if_needed)
+        if not osm_ready:
+            return
+        print("🗺️  Loading Philippine transit network in background...")
+        STOPS, CONNECTIONS = await loop.run_in_executor(
+            None, load_or_build_network, OSM_PATH
+        )
+        NETWORK_LOADED = True
+        print(f"✅ Ready — {len(STOPS):,} stops, {len(CONNECTIONS):,} connections")
+    except Exception as e:
+        print(f"⚠️  Failed to load network: {e} — staying in mock mode")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global STOPS, CONNECTIONS, NETWORK_LOADED
-    if IMPORTS_OK and download_osm_if_needed():
-        print("🗺️  Loading Philippine transit network...")
-        try:
-            STOPS, CONNECTIONS = load_or_build_network(OSM_PATH)
-            NETWORK_LOADED = True
-            print(f"✅ Ready — {len(STOPS):,} stops, {len(CONNECTIONS):,} connections")
-        except Exception as e:
-            print(f"⚠️  Failed to load network: {e} — running in mock mode")
-            NETWORK_LOADED = False
-    else:
-        print(f"⚠️  OSM file not found — running in MOCK mode")
-        NETWORK_LOADED = False
+    # Server starts immediately in mock mode, loads OSM in background
+    asyncio.create_task(load_network_background())
     yield
+
 
 app = FastAPI(
     title="OptiWays CSA Backend",
@@ -162,7 +174,6 @@ def get_route(
         is_student:     bool = Query(False),
         is_pwd:         bool = Query(False)
 ):
-    # Validate Philippines bounding box
     if not (4.5 <= origin_lat <= 21.5 and 116.0 <= origin_lng <= 127.0):
         raise HTTPException(400, "Origin must be within the Philippines")
     if not (4.5 <= dest_lat <= 21.5 and 116.0 <= dest_lng <= 127.0):
@@ -171,7 +182,6 @@ def get_route(
     filters = build_filters(profile, is_student, is_pwd)
     dep_time_sec = parse_departure_time(departure_time)
 
-    # Real CSA routing
     if NETWORK_LOADED and STOPS and CONNECTIONS and IMPORTS_OK:
         try:
             origin_stops = find_nearest_stops(origin_lat, origin_lng, STOPS, n=3, max_dist_m=1000)
@@ -203,18 +213,13 @@ def get_route(
             raise
         except Exception as e:
             print(f"CSA error: {e}")
-            # Fall through to mock
 
-    # Mock fallback
     return _mock_route(origin_lat, origin_lng, dest_lat, dest_lng, profile, is_student, is_pwd)
 
 
 def _mock_route(origin_lat, origin_lng, dest_lat, dest_lng, profile, is_student, is_pwd):
-    """Returns realistic mock data when OSM is not loaded."""
     base_fare = 45.0
     filters   = build_filters(profile, is_student, is_pwd)
-
-    # Apply discount manually without importing csa_algorithm
     discount = 0.0
     if filters.get("student_discount"):
         discount = base_fare * filters["student_discount"]
