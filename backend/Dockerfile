@@ -1,21 +1,16 @@
 # Railway.app Dockerfile for OptiWays CSA Backend
-FROM python:3.11-slim
+FROM python:3.11-bookworm
 
 WORKDIR /app
 
-# Install system dependencies for pyosmium
+# Install system dependencies + osmium
 RUN apt-get update && apt-get install -y \
     wget \
-    build-essential \
-    cmake \
-    libboost-all-dev \
-    libexpat1-dev \
-    zlib1g-dev \
-    libbz2-dev \
+    python3-osmium \
     && rm -rf /var/lib/apt/lists/*
 
-# Install pyosmium first separately
-RUN pip install --no-cache-dir pyosmium
+# Make apt-installed pyosmium available to our python
+RUN pip install --no-cache-dir osmium
 
 # Install other Python dependencies
 COPY requirements.txt .
