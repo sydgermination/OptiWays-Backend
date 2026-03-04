@@ -3,13 +3,21 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies + pyosmium via apt (more reliable than pip)
+# Install system dependencies for pyosmium
 RUN apt-get update && apt-get install -y \
     wget \
-    python3-osmium \
+    build-essential \
+    cmake \
+    libboost-all-dev \
+    libexpat1-dev \
+    zlib1g-dev \
+    libbz2-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies (without pyosmium - installed via apt)
+# Install pyosmium first separately
+RUN pip install --no-cache-dir pyosmium
+
+# Install other Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
