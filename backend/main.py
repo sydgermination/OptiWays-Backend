@@ -29,13 +29,29 @@ except Exception as e:
 STOPS = {}
 CONNECTIONS = []
 NETWORK_LOADED = False
-OSM_PATH = os.environ.get("OSM_PATH", "data/philippines-260301.osm.pbf")
+OSM_PATH = os.environ.get("OSM_PATH", "data/philippines-latest.osm.pbf")
+OSM_URL  = os.environ.get("OSM_URL",  "https://download.geofabrik.de/asia/philippines-latest.osm.pbf")
+
+
+def download_osm_if_needed():
+    if os.path.exists(OSM_PATH):
+        return True
+    try:
+        import urllib.request
+        print(f"⬇️  Downloading OSM data from {OSM_URL} ...")
+        os.makedirs(os.path.dirname(OSM_PATH), exist_ok=True)
+        urllib.request.urlretrieve(OSM_URL, OSM_PATH)
+        print("✅ OSM download complete")
+        return True
+    except Exception as e:
+        print(f"⚠️  OSM download failed: {e} — running in mock mode")
+        return False
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global STOPS, CONNECTIONS, NETWORK_LOADED
-    if IMPORTS_OK and os.path.exists(OSM_PATH):
+    if IMPORTS_OK and download_osm_if_needed():
         print("🗺️  Loading Philippine transit network...")
         try:
             STOPS, CONNECTIONS = load_or_build_network(OSM_PATH)
@@ -48,7 +64,6 @@ async def lifespan(app: FastAPI):
         print(f"⚠️  OSM file not found — running in MOCK mode")
         NETWORK_LOADED = False
     yield
-
 
 app = FastAPI(
     title="OptiWays CSA Backend",
