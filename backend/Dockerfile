@@ -4,13 +4,21 @@ FROM python:3.11-bookworm
 WORKDIR /app
 
 # Install system dependencies + osmium
+# Install system dependencies (C++ headers and build tools for osmium)
 RUN apt-get update && apt-get install -y \
     wget \
-    python3-osmium \
+    build-essential \
+    libosmium2-dev \
+    libprotozero-dev \
+    libboost-python-dev \
+    zlib1g-dev \
+    libexpat1-dev \
+    libbz2-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Make apt-installed pyosmium available to our python
+# Now pip will be able to compile osmium
 RUN pip install --no-cache-dir osmium
+
 
 # Install other Python dependencies
 COPY requirements.txt .
