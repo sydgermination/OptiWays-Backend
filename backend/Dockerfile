@@ -1,53 +1,30 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # OptiWays CSA Backend — Railway.app Dockerfile
-# Build time:  ~2 min (OSM download only)
-# Runtime:     Server starts instantly in mock mode, loads OSM in background
+# Lightweight mode: uses data/transit_routes.json only (no PBF download)
+# Build time:  ~1 min
+# RAM needed:  ~300MB
+# Startup:     ~30 seconds (JSON parse, no PBF needed)
 # ─────────────────────────────────────────────────────────────────────────────
 
-FROM python:3.11-bookworm
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# ─── System dependencies ──────────────────────────────────────────────────────
+# Minimal system deps — no osmium needed in JSON-only mode
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        wget \
-        build-essential \
-        cmake \
-        libosmium2-dev \
-        libprotozero-dev \
-        libboost-python-dev \
-        libboost-dev \
-        zlib1g-dev \
-        libexpat1-dev \
-        libbz2-dev \
-        liblz4-dev \
-        libzstd-dev \
+        gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# ─── Python dependencies ──────────────────────────────────────────────────────
-RUN pip install --no-cache-dir osmium
-
+# Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ─── Source code ──────────────────────────────────────────────────────────────
+# Source code
 COPY *.py .
 
-# ─── OSM data download ────────────────────────────────────────────────────────
-# Downloads Philippines OSM extract (~565MB) at build time.
-# Cache bake happens at runtime in the background — no build timeout risk.
-RUN mkdir -p data && \
-    wget --no-verbose \
-         --tries=3 \
-         --timeout=300 \
-         -O data/philippines-latest.osm.pbf \
-         https://download.geofabrik.de/asia/philippines-latest.osm.pbf \
-    && echo "✅ OSM download complete — $(du -sh data/philippines-latest.osm.pbf | cut -f1)"
+# Transit data (transit_routes.json — committed via Git LFS)
+COPY data/ ./data/
 
-# ─── Runtime ──────────────────────────────────────────────────────────────────
-# Single worker to conserve RAM during OSM parse (~400MB peak).
-# Server starts immediately in mock mode.
-# Real CSA routing activates automatically after ~5 min background parse.
 EXPOSE 8000
 
 CMD ["uvicorn", "main:app", \
