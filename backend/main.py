@@ -296,7 +296,8 @@ def get_route(
                 origin_stops=origin_stops,
                 dest_stops=dest_stops,
                 departure_time_sec=dep_time_sec,
-                filters=filters
+                filters=filters,
+                stops_dict=STOPS
             )
             if result is None:
                 raise HTTPException(404, "No route found for this departure time.")
