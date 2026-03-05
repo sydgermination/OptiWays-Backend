@@ -41,9 +41,6 @@ def load_network_thread():
         print("⚠️  Imports failed — staying in mock mode")
         return
     try:
-        if not os.path.exists(OSM_PATH):
-            print(f"⚠️  OSM file not found at {OSM_PATH} — staying in mock mode")
-            return
         print("🗺️  Loading Philippine transit network in background thread...")
         stops, connections = load_or_build_network(OSM_PATH)
         STOPS = stops
