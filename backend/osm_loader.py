@@ -521,9 +521,12 @@ CACHE_FILE = "data/ph_transit_cache.pkl"
 
 def load_or_build_network(pbf_path: str, force_rebuild: bool = False):
     """
-    Load transit network from cache or rebuild from OSM.
-    First build takes 2-5 minutes. Subsequent loads take ~2 seconds.
+    Load transit network. Strategy (in order):
+    1. Pickle cache  — fastest (~2 sec, no RAM spike)
+    2. transit_routes.json only — lightweight (~30 sec, ~300MB RAM, no PBF needed)
+    3. Full PBF parse — complete data (2-5 min, needs 2GB+ RAM)
     """
+    # ── Strategy 1: Cache ──────────────────────────────────────────────────
     if not force_rebuild and os.path.exists(CACHE_FILE):
         print("📦 Loading transit network from cache...")
         with open(CACHE_FILE, "rb") as f:
@@ -531,46 +534,64 @@ def load_or_build_network(pbf_path: str, force_rebuild: bool = False):
         print(f"✅ Loaded {len(data['stops']):,} stops, {len(data['connections']):,} connections")
         return data["stops"], data["connections"]
 
-    print(f"🗺️  Parsing {pbf_path} — this takes 2-5 minutes on first run...")
+    # ── Strategy 2: transit_routes.json only (no PBF required) ────────────
+    transit_json = "data/transit_routes.json"
+    if not os.path.exists(pbf_path) and os.path.exists(transit_json):
+        print("📋 No PBF file — building from transit_routes.json (lightweight mode)...")
+        stops: Dict[str, Stop] = {}
+        try:
+            from load_transit_routes import inject_transit_routes
+            transit_connections = inject_transit_routes(stops, Connection)
+        except Exception as e:
+            print(f"❌ Failed to load transit_routes.json: {e}")
+            return {}, []
 
+        print(f"📍 {len(stops):,} stops built from OSM route data")
+        walk_connections = build_walking_connections(stops, max_walk_m=400)
+        all_connections  = transit_connections + walk_connections
+        all_connections.sort(key=lambda c: c.dep_time)
+        print(f"✅ Total connections: {len(all_connections):,}")
+
+        os.makedirs("data", exist_ok=True)
+        with open(CACHE_FILE, "wb") as f:
+            pickle.dump({"stops": stops, "connections": all_connections}, f)
+        print(f"💾 Cached to {CACHE_FILE}")
+        return stops, all_connections
+
+    # ── Strategy 3: Full PBF parse ─────────────────────────────────────────
+    if not os.path.exists(pbf_path):
+        print(f"❌ Neither PBF ({pbf_path}) nor transit_routes.json found.")
+        return {}, []
+
+    print(f"🗺️  Parsing {pbf_path} — this takes 2-5 minutes on first run...")
     handler = TransitHandler()
     handler.apply_file(pbf_path, locations=True)
 
-    stops = handler.stops
+    stops  = handler.stops
     routes = handler.routes
     print(f"📍 Found {len(stops):,} stops and {len(routes):,} routes")
 
-    # Build timetable connections (pass way geometry for real route polylines)
     transit_connections = build_timetable(
         stops, routes,
         handler_way_nodes=handler._way_nodes,
         handler_node_coords=handler._node_coords
     )
 
-    # Inject OSM-fetched routes (jeepney, bus, UV express, MRT, LRT, PNR)
-    # from data/transit_routes.json — produced by fetch_transit_routes.py
-    # These have real road-following geometry from OSM way members.
     try:
         from load_transit_routes import inject_transit_routes
-        osm_connections = inject_transit_routes(stops, Connection)
+        osm_connections     = inject_transit_routes(stops, Connection)
         transit_connections = transit_connections + osm_connections
-        print(f"✅ OSM route injection complete: {len(osm_connections):,} connections added")
+        print(f"✅ OSM route injection: {len(osm_connections):,} connections added")
     except Exception as e:
         print(f"⚠️  OSM route injection skipped: {e}")
 
-    # Build walking connections
     walk_connections = build_walking_connections(stops)
-
-    # Merge and sort
-    all_connections = transit_connections + walk_connections
+    all_connections  = transit_connections + walk_connections
     all_connections.sort(key=lambda c: c.dep_time)
-
     print(f"✅ Total connections: {len(all_connections):,}")
 
-    # Cache for fast startup
     os.makedirs("data", exist_ok=True)
     with open(CACHE_FILE, "wb") as f:
         pickle.dump({"stops": stops, "connections": all_connections}, f)
     print(f"💾 Cached to {CACHE_FILE}")
-
     return stops, all_connections
