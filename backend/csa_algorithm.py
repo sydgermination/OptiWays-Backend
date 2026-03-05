@@ -74,12 +74,12 @@ DEST_ID = "__DESTINATION__"
 # ─────────────────────────────────────────────────────────────────────────────
 
 def run_csa(
-        connections: List[Connection],
-        origin_stops: List[Stop],
-        dest_stops: List[Stop],
-        departure_time_sec: int,
-        filters: dict,
-        max_walk_to_stop_m: float = 500
+    connections: List[Connection],
+    origin_stops: List[Stop],
+    dest_stops: List[Stop],
+    departure_time_sec: int,
+    filters: dict,
+    max_walk_to_stop_m: float = 500
 ) -> Optional[dict]:
     """
     Run the Connection Scan Algorithm.
@@ -95,6 +95,10 @@ def run_csa(
     Returns:
         Route dict with legs, fare, duration — or None if no route found
     """
+
+    # Set global stops dict for name lookups during reconstruction
+    global _STOPS_DICT
+    _STOPS_DICT = stops_dict or {}
 
     # T[stop_id] = earliest known arrival time at that stop
     T: Dict[str, float] = {}
@@ -161,7 +165,8 @@ def run_csa(
         origin_stops=origin_stops,
         dest_stop=best_dest_stop,
         departure_time_sec=departure_time_sec,
-        filters=filters
+        filters=filters,
+        stops_dict=stops_dict or {}
     )
 
 
@@ -182,12 +187,12 @@ def _binary_search_start(connections: List[Connection], dep_time: int) -> int:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def reconstruct_journey(
-        S: dict,
-        T: dict,
-        origin_stops: List[Stop],
-        dest_stop: Stop,
-        departure_time_sec: int,
-        filters: dict
+    S: dict,
+    T: dict,
+    origin_stops: List[Stop],
+    dest_stop: Stop,
+    departure_time_sec: int,
+    filters: dict
 ) -> dict:
     """Walk backwards through S to build the step-by-step leg list."""
     legs_raw = []
@@ -371,5 +376,12 @@ def _build_instruction(mode: str, first: Connection, last: Connection) -> str:
     return instructions.get(mode, f"Travel from {from_name} to {to_name}")
 
 
+# Global stops dict for name lookup — set by run_csa
+_STOPS_DICT: dict = {}
+
 def _stop_name_from_conn(conn: Connection, which: str) -> str:
-    return f"Stop {conn.from_stop[:6]}" if which == "from" else f"Stop {conn.to_stop[:6]}"
+    stop_id = conn.from_stop if which == "from" else conn.to_stop
+    stop = _STOPS_DICT.get(stop_id)
+    if stop and stop.name and not stop.name.startswith("Stop_"):
+        return stop.name
+    return f"Stop {stop_id[:8]}"
