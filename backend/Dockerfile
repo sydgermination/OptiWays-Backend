@@ -1,26 +1,22 @@
 # OptiWays CSA Backend — Railway.app Dockerfile
-# Lightweight mode: uses data/transit_routes.json only
-# No PBF download — builds network from OSM Overpass data instead
-# Build time: ~1 min | RAM: ~300MB | Startup: ~30 sec
-
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Minimal system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
+    gcc wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Source code
 COPY *.py .
 
-# Transit data (transit_routes.json via Git LFS — 749 routes, all modes)
-COPY data/ ./data/
+# Download transit routes JSON from Google Drive at build time
+RUN mkdir -p data && wget -q \
+    "https://drive.google.com/uc?export=download&id=1Upirxqn7b7ls_kmthJ71P6stf5WyMYY7" \
+    -O data/transit_routes.json \
+    && echo "✅ transit_routes.json downloaded: $(du -sh data/transit_routes.json)"
 
 EXPOSE 8000
 
