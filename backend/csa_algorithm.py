@@ -256,7 +256,9 @@ def reconstruct_journey(
         last = conn_group[-1]
         mode = first.mode
         distance_m = sum(c.distance_m for c in conn_group)
-        base_fare = sum(c.fare for c in conn_group)
+        # Recalculate fare on total merged distance (not sum of per-segment fares)
+        # This prevents fare inflation from summing many small segments
+        base_fare = calculate_fare(mode, distance_m)
         final_fare, discount = apply_fare_discount(base_fare, mode, filters)
         duration_min = max(1, (last.arr_time - first.dep_time) // 60)
 
@@ -264,6 +266,17 @@ def reconstruct_journey(
         total_discount += discount
 
         instruction = _build_instruction(mode, first, last)
+
+        # Merge OSM geometry across all connections in this group
+        osm_geometry = []
+        for c in conn_group:
+            if hasattr(c, "geometry") and c.geometry:
+                osm_geometry.extend(c.geometry)
+        # Deduplicate consecutive duplicate points
+        deduped_geo = []
+        for pt in osm_geometry:
+            if not deduped_geo or pt != deduped_geo[-1]:
+                deduped_geo.append(pt)
 
         legs.append({
             "step_number": step,
@@ -280,7 +293,8 @@ def reconstruct_journey(
             "from_lat": first.from_lat,
             "from_lng": first.from_lng,
             "to_lat": last.to_lat,
-            "to_lng": last.to_lng
+            "to_lng": last.to_lng,
+            "osm_geometry": deduped_geo  # actual road path from OSM way nodes
         })
         step += 1
 
