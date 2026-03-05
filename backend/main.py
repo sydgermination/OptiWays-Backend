@@ -32,23 +32,22 @@ STOPS = {}
 CONNECTIONS = []
 NETWORK_LOADED = False
 OSM_PATH = os.environ.get("OSM_PATH", "data/philippines-latest.osm.pbf")
-MAPS_API_KEY = os.environ.get("MAPS_API_KEY", "AIzaSyA193wrQDd49sT-gk2eoF1x2UwQFWpYQD4")
+MAPS_API_KEY = os.environ.get("MAPS_API_KEY", "")
 
 
-async def load_network_background():
+def load_network_thread():
     global STOPS, CONNECTIONS, NETWORK_LOADED
     if not IMPORTS_OK:
         print("⚠️  Imports failed — staying in mock mode")
         return
     try:
-        loop = asyncio.get_event_loop()
         if not os.path.exists(OSM_PATH):
             print(f"⚠️  OSM file not found at {OSM_PATH} — staying in mock mode")
             return
-        print("🗺️  Loading Philippine transit network in background...")
-        STOPS, CONNECTIONS = await loop.run_in_executor(
-            None, load_or_build_network, OSM_PATH
-        )
+        print("🗺️  Loading Philippine transit network in background thread...")
+        stops, connections = load_or_build_network(OSM_PATH)
+        STOPS = stops
+        CONNECTIONS = connections
         NETWORK_LOADED = True
         print(f"✅ Ready — {len(STOPS):,} stops, {len(CONNECTIONS):,} connections")
     except Exception as e:
@@ -57,7 +56,9 @@ async def load_network_background():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.create_task(load_network_background())
+    import threading
+    t = threading.Thread(target=load_network_thread, daemon=True)
+    t.start()
     yield
 
 
