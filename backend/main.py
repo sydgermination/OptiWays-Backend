@@ -32,7 +32,7 @@ STOPS = {}
 CONNECTIONS = []
 NETWORK_LOADED = False
 OSM_PATH = os.environ.get("OSM_PATH", "data/philippines-latest.osm.pbf")
-MAPS_API_KEY = os.environ.get("MAPS_API_KEY", "")
+MAPS_API_KEY = os.environ.get("MAPS_API_KEY", "AIzaSyA193wrQDd49sT-gk2eoF1x2UwQFWpYQD4")
 
 
 async def load_network_background():
