@@ -4,19 +4,20 @@ FROM python:3.11-slim
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc wget \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install gdown for Google Drive downloads
+RUN pip install --no-cache-dir gdown
+
 COPY *.py .
 
-# Download transit routes JSON from Google Drive at build time
-RUN mkdir -p data && wget -q \
-    "https://drive.google.com/uc?export=download&id=1Upirxqn7b7ls_kmthJ71P6stf5WyMYY7" \
-    -O data/transit_routes.json \
-    && echo "✅ transit_routes.json downloaded: $(du -sh data/transit_routes.json)"
+# Download transit_routes.json from Google Drive
+RUN mkdir -p data && gdown "1Upirxqn7b7ls_kmthJ71P6stf5WyMYY7" -O data/transit_routes.json \
+    && echo "✅ Downloaded: $(du -sh data/transit_routes.json)"
 
 EXPOSE 8000
 
