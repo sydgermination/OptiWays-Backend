@@ -6,7 +6,17 @@ Parses philippines-260301.osm.pbf and extracts:
 - Builds a timetable of connections for CSA
 """
 
-import osmium
+# osmium only needed for PBF parsing — optional in JSON-only mode
+try:
+    import osmium
+    OSMIUM_AVAILABLE = True
+except ImportError:
+    OSMIUM_AVAILABLE = False
+    # Create a dummy base class so TransitHandler definition doesn't crash
+    class _DummyHandler:
+        def apply_file(self, *a, **kw): pass
+    class osmium:
+        SimpleHandler = _DummyHandler
 import json
 import math
 import pickle
